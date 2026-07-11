@@ -43,7 +43,7 @@ namespace KickMenu
 
             try
             {
-                ModSettingsManager.SetModDescription("A Risk of Rain 2 mod that allows you to kick players from your lobby as well as during the game. Default keybind to open the menu is F6.");
+                ModSettingsManager.SetModDescription("A Risk of Rain 2 mod that allows you to kick players from your lobby as well as during the game. Default keybind to open the menu is F1.");
 
                 string pluginDir = System.IO.Path.GetDirectoryName(Info.Location);
                 string iconPath = System.IO.Path.Combine(pluginDir, "icon.png");
@@ -433,8 +433,8 @@ namespace KickMenu
                 OpenMenuKey = config.Bind(
                     "Controls",
                     "Open Kick Menu Key",
-                    new KeyboardShortcut(KeyCode.F6),
-                    "Keybind used to open the player kick menu. \n\nDefault: F6"
+                    new KeyboardShortcut(KeyCode.F1),
+                    "Keybind used to open the player kick menu. \n\nDefault: F1"
                 );
 
                 ModSettingsManager.AddOption(new CheckBoxOption(ConfirmKick));

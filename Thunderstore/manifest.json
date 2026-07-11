@@ -1,8 +1,8 @@
 ﻿{
 	"name": "KickMenu",
-	"version_number": "1.0.1",
+	"version_number": "1.0.2",
 	"website_url": "https://github.com/Bamboooz/RoR2-KickMenu",
-	"description": "A Risk of Rain 2 mod that allows you to kick players from your lobby as well as during the game. Default keybind to open the menu is F6.",
+	"description": "A Risk of Rain 2 mod that allows you to kick players from your lobby as well as during the game. Default keybind to open the menu is F1.",
 	"dependencies": [
 		"bbepis-BepInExPack-5.4.2108",
 		"RiskofThunder-HookGenPatcher-1.2.3",

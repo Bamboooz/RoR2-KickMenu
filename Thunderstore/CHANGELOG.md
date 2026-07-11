@@ -6,3 +6,6 @@
 ## 1.0.1
 - Fixed a bug where the mod's icon was not being displayed in RiskOfOptions menu
 - Changed the default keybind to F6
+
+## 1.0.2
+- Changed the default keybind to F1
