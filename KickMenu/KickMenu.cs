@@ -4,16 +4,13 @@ using RiskOfOptions;
 using RiskOfOptions.Components.Options;
 using RiskOfOptions.Options;
 using RoR2;
-using RoR2.Networking;
 using RoR2.UI;
 using System;
 using System.IO;
-using System.Linq;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Networking;
-using UnityEngine.UI;
 using UnityEngine.AddressableAssets;
+using UnityEngine.UI;
 
 namespace KickMenu
 {
@@ -28,7 +25,7 @@ namespace KickMenu
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "Bamboooz";
         public const string PluginName = "KickMenu";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.0.3";
 
         private GameObject menuPanel;
         private Transform contentRoot;
@@ -88,29 +85,17 @@ namespace KickMenu
 
         public void Update()
         {
-            if (!IsHost())
-            {
-                return;
-            }
-
             if (ModConfig.OpenMenuKey.Value.IsDown())
             {
                 ToggleMenu();
             }
-        }
 
-        #endregion
+            if (new KeyboardShortcut(KeyCode.Escape).IsDown())
+            {
+                menuOpen = false;
 
-        #region host
-
-        private bool IsHost()
-        {
-            return NetworkServer.active;
-        }
-
-        private bool IsHost(NetworkUser networkUser)
-        {
-            return NetworkUser.readOnlyLocalPlayersList.Contains(networkUser);
+                menuPanel.SetActive(menuOpen);
+            }
         }
 
         #endregion
@@ -140,21 +125,11 @@ namespace KickMenu
             orig(self);
         }
 
-        private bool IsSolo()
-        {
-            return !NetworkUser.readOnlyInstancesList.Any(user => !user.isLocalPlayer);
-        }
-
         private void ToggleMenu()
         {
             if (menuPanel == null)
             {
                 CreateMenu();
-            }
-
-            if (!menuOpen && IsSolo())
-            {
-                return;
             }
 
             menuOpen = !menuOpen;
@@ -176,17 +151,22 @@ namespace KickMenu
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 1000;
 
-            canvasObj.AddComponent<CanvasScaler>();
+            CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+
             canvasObj.AddComponent<GraphicRaycaster>();
 
             DontDestroyOnLoad(canvasObj);
 
             menuPanel = new GameObject("KickMenuPanel");
-            menuPanel.transform.SetParent(canvasObj.transform);
+
+            menuPanel.transform.SetParent(canvasObj.transform, false);
 
             RectTransform panelRect = menuPanel.AddComponent<RectTransform>();
 
-            panelRect.sizeDelta = new Vector2(500, 450);
+            panelRect.sizeDelta = new Vector2(750, 0);
             panelRect.anchoredPosition = Vector2.zero;
 
             Image panelImage = menuPanel.AddComponent<Image>();
@@ -195,13 +175,21 @@ namespace KickMenu
 
             VerticalLayoutGroup layout = menuPanel.AddComponent<VerticalLayoutGroup>();
 
-            layout.padding = new RectOffset(20, 20, 20, 20);
+            layout.padding = new RectOffset(20,20,20,20);
             layout.spacing = 8;
+
             layout.childAlignment = TextAnchor.UpperCenter;
+
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
 
             ContentSizeFitter fitter = menuPanel.AddComponent<ContentSizeFitter>();
 
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
 
             contentRoot = menuPanel.transform;
 
@@ -217,11 +205,6 @@ namespace KickMenu
 
             foreach (NetworkUser user in NetworkUser.readOnlyInstancesList)
             {
-                if (IsHost(user))
-                {
-                    continue;
-                }
-
                 CreatePlayerEntry(user);
             }
         }
@@ -230,16 +213,22 @@ namespace KickMenu
         {
             GameObject row = new GameObject("PlayerRow");
 
-            row.transform.SetParent(contentRoot);
+            row.transform.SetParent(contentRoot, false);
 
             RectTransform rowRect = row.AddComponent<RectTransform>();
 
-            rowRect.sizeDelta = new Vector2(450, 50);
+            rowRect.sizeDelta = new Vector2(700, 50);
 
             HorizontalLayoutGroup layout = row.AddComponent<HorizontalLayoutGroup>();
 
-            layout.spacing = 15;
+            layout.spacing = 10;
             layout.childAlignment = TextAnchor.MiddleCenter;
+
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
 
             LayoutElement rowElement = row.AddComponent<LayoutElement>();
 
@@ -247,61 +236,92 @@ namespace KickMenu
 
             GameObject nameObj = new GameObject("PlayerName");
 
-            nameObj.transform.SetParent(row.transform);
-
-            RectTransform nameRect = nameObj.AddComponent<RectTransform>();
-
-            nameRect.sizeDelta = new Vector2(280, 40);
-
-            LayoutElement nameElement = nameObj.AddComponent<LayoutElement>();
-
-            nameElement.preferredWidth = 280;
+            nameObj.transform.SetParent(row.transform, false);
 
             TextMeshProUGUI nameText = nameObj.AddComponent<TextMeshProUGUI>();
 
             nameText.text = user.userName;
             nameText.fontSize = 20;
             nameText.alignment = TextAlignmentOptions.MidlineLeft;
-
             nameText.color = Color.white;
+
+            LayoutElement nameElement = nameObj.AddComponent<LayoutElement>();
+
+            nameElement.flexibleWidth = 1;
+            nameElement.preferredHeight = 40;
 
             if (!buttonPrefab)
             {
                 return;
             }
 
-            GameObject kickButton = Instantiate(buttonPrefab, row.transform);
-
-            kickButton.name = "KickButton";
-
-            RectTransform buttonRect = kickButton.GetComponent<RectTransform>();
-
-            buttonRect.sizeDelta = new Vector2(120, 40);
-
-            LayoutElement buttonElement = kickButton.AddComponent<LayoutElement>();
-
-            buttonElement.preferredWidth = 120;
-            buttonElement.preferredHeight = 40;
-
-            TextMeshProUGUI buttonText = kickButton.GetComponentInChildren<TextMeshProUGUI>();
-
-            if (buttonText)
+            if (Player.IsHost() && !Player.IsHost(user))
             {
-                buttonText.text = "Kick";
-                buttonText.fontSize = 16;
-                buttonText.alignment = TextAlignmentOptions.Center;
+                GameObject kickButton = Instantiate(buttonPrefab, row.transform);
+
+                kickButton.name = "KickButton";
+
+                LayoutElement kickElement = kickButton.AddComponent<LayoutElement>();
+                kickElement.preferredWidth = 100;
+                kickElement.preferredHeight = 40;
+
+                TextMeshProUGUI kickText = kickButton.GetComponentInChildren<TextMeshProUGUI>();
+
+                if (kickText)
+                {
+                    kickText.text = "Kick";
+                    kickText.fontSize = 16;
+                    kickText.alignment = TextAlignmentOptions.Center;
+                }
+
+                HGButton kickHgButton = kickButton.GetComponent<HGButton>();
+
+                if (kickHgButton)
+                {
+                    kickHgButton.onClick.RemoveAllListeners();
+
+                    kickHgButton.onClick.AddListener(() =>
+                    {
+                        OnKickButtonClicked(user);
+                    });
+                }
             }
 
-            HGButton hgButton = kickButton.GetComponent<HGButton>();
+            GameObject profileButton = Instantiate(buttonPrefab, row.transform);
 
-            if (hgButton)
+            profileButton.name = "SteamProfileButton";
+
+            LayoutElement profileElement = profileButton.AddComponent<LayoutElement>();
+
+            profileElement.preferredWidth = 100;
+            profileElement.preferredHeight = 40;
+
+            TextMeshProUGUI profileText = profileButton.GetComponentInChildren<TextMeshProUGUI>();
+
+            if (profileText)
             {
-                hgButton.onClick.RemoveAllListeners();
+                profileText.text = "Profile";
+                profileText.fontSize = 16;
+                profileText.alignment = TextAlignmentOptions.Center;
+            }
 
-                hgButton.onClick.AddListener(() =>
+            HGButton profileHgButton = profileButton.GetComponent<HGButton>();
+
+            if (profileHgButton)
+            {
+                profileHgButton.onClick.RemoveAllListeners();
+
+                profileHgButton.onClick.AddListener(() =>
                 {
-                    OnKickButtonClicked(user);
+                    Steam.OpenSteamProfile(Player.GetId(user));
                 });
+            }
+
+            ulong userId = Player.GetId(user);
+
+            if (userId == 0)
+            {
+                profileButton.SetActive(false);
             }
         }
 
@@ -316,14 +336,14 @@ namespace KickMenu
                 return;
             }
 
-            if (!IsHost())
+            if (!Player.IsHost())
             {
                 return;
             }
 
             if (!ModConfig.ConfirmKick.Value)
             {
-                KickPlayer(networkUser);
+                Player.Kick(networkUser, RefreshPlayerList);
 
                 return;
             }
@@ -343,65 +363,8 @@ namespace KickMenu
             dialog.headerLabel.text = "Confirm Kick";
             dialog.descriptionLabel.text = $"Are you sure you want to kick {networkUser.userName}?";
 
-            dialog.AddActionButton(() => KickPlayer(networkUser), "Yes", true);
+            dialog.AddActionButton(() => Player.Kick(networkUser, RefreshPlayerList), "Yes", true);
             dialog.AddCancelButton("Cancel");
-        }
-
-        private void KickPlayer(NetworkUser networkUser)
-        {
-            try
-            {
-                if (networkUser == null)
-                {
-                    return;
-                }
-
-                if (!IsHost())
-                {
-                    return;
-                }
-
-                if (IsHost(networkUser))
-                {
-                    Log.LogWarning($"Attempted to kick host ({networkUser.userName}). Action aborted.");
-
-                    return;
-                }
-
-                NetworkConnection client = networkUser.connectionToClient;
-
-                if (client == null)
-                {
-                    Log.LogWarning($"No connection found for player: {networkUser.userName}");
-
-                    return;
-                }
-
-                if (!client.isReady)
-                {
-                    Log.LogWarning($"Client connection for {networkUser.userName} is not ready. Connection ID: {client.connectionId}");
-                }
-
-                Log.LogInfo($"Kicking player {networkUser.userName} (Connection ID: {client.connectionId})");
-
-                var reason = new NetworkManagerSystem.SimpleLocalizedKickReason("KICK_REASON_KICK");
-
-                NetworkManagerSystem.singleton.ServerKickClient(client, reason);
-
-                if (ModConfig.BroadcastKick.Value)
-                {
-                    Chat.SendBroadcastChat(new Chat.SimpleChatMessage
-                    {
-                        baseToken = $"<color=#e57373>Kicked player:</color> <color=#ffffff><noparse>{networkUser.userName}</noparse></color>"
-                    });
-                }
-
-                RefreshPlayerList();
-            }
-            catch (Exception e)
-            {
-                Log.LogError($"Exception in KickPlayer: {e.Message}\n{e.StackTrace}");
-            }
         }
 
         #endregion

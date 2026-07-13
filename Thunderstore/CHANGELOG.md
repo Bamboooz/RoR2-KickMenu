@@ -9,3 +9,6 @@
 
 ## 1.0.2
 - Changed the default keybind to F1
+
+## 1.0.3
+- Added a button to open the player's Steam profile, available to everyone
