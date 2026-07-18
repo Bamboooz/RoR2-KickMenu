@@ -1,11 +1,24 @@
-﻿using System;
+﻿using RoR2;
+using System;
 using System.Diagnostics;
+
+using static KickMenu.KickMenuPlugin;
 
 namespace KickMenu
 {
-    internal class Steam
+    internal static class Steam
     {
-        private static String OpenSteamProfileCommand(ulong id)
+        public static ulong GetSteamId(NetworkUser networkUser)
+        {
+            if (networkUser == null)
+            {
+                return 0;
+            }
+
+            return Convert.ToUInt64(networkUser.Network_id.steamId.value);
+        }
+
+        private static string OpenSteamProfileCommand(ulong id)
         {
             if (id == 0)
             {
@@ -39,7 +52,7 @@ namespace KickMenu
             }
             catch (Exception e)
             {
-                Log.Error($"Failed to open Steam profile: {e.Message}");
+                Log.LogError($"Failed to open Steam profile: {e.Message}");
             }
         }
     }

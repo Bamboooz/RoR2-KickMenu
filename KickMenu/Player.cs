@@ -1,99 +1,105 @@
-﻿using RoR2;
+﻿using System;
+using RoR2;
 using RoR2.Networking;
-using System;
-using System.Linq;
 using UnityEngine.Networking;
 
 using static KickMenu.KickMenuPlugin;
 
 namespace KickMenu
 {
-    internal class Player
+    internal static class Player
     {
         public static bool IsHost()
         {
             return NetworkServer.active;
         }
 
-        public static bool IsHost(NetworkUser networkUser)
+        public static bool IsHost(NetworkUser user)
         {
-            return NetworkUser.readOnlyLocalPlayersList.Contains(networkUser);
+            if (!NetworkServer.active)
+            {
+                return false;
+            }
+
+            return user.isLocalPlayer;
         }
 
-        public static bool IsSolo()
-        {
-            return NetworkUser.readOnlyInstancesList.All(user => user.isLocalPlayer);
-        }
-
-        public static ulong GetId(NetworkUser networkUser)
+        private static NetworkConnection GetNetworkConnection(NetworkUser networkUser)
         {
             if (networkUser == null)
             {
-                return 0;
+                return null;
             }
 
-            return networkUser.id.value;
+            if (!IsHost())
+            {
+                return null;
+            }
+
+            if (IsHost(networkUser))
+            {
+                Log.LogWarning($"Attempted to remove host ({networkUser.userName}). Action aborted.");
+
+                return null;
+            }
+
+            return networkUser.connectionToClient;
         }
 
-        public static bool Kick(NetworkUser networkUser, Action onKick)
+        private static void SendRemoveMessage(NetworkUser networkUser, string message)
         {
-            try
+            if (ModConfig.BroadcastKick.Value)
             {
-                if (networkUser == null)
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
                 {
-                    return false;
-                }
+                    baseToken = $"<color=#e57373>{message} player:</color> <color=#ffffff><noparse>{networkUser.userName}</noparse></color>"
+                });
+            }
+        }
 
-                if (!IsHost())
-                {
-                    return false;
-                }
+        public static void RemovePlayer(NetworkUser networkUser, string message, Action<NetworkConnection> action)
+        { 
+            NetworkConnection client = GetNetworkConnection(networkUser);
 
-                if (IsHost(networkUser))
-                {
-                    Log.Warning($"Attempted to kick host ({networkUser.userName}). Action aborted.");
+            if (client == null)
+            {
+                Log.LogWarning($"No connection found for player: {networkUser?.userName}");
 
-                    return false;
-                }
+                return;
+            }
 
-                NetworkConnection client = networkUser.connectionToClient;
+            if (!client.isReady)
+            {
+                Log.LogWarning($"Client connection for {networkUser.userName} is not ready. Connection ID: {client.connectionId}");
+            }
 
-                if (client == null)
-                {
-                    Log.Warning($"No connection found for player: {networkUser.userName}");
+            try
+            { 
+                Log.LogInfo($"Removing player {networkUser.userName} (Connection ID: {client.connectionId})");
 
-                    return false;
-                }
+                action(client);
 
-                if (!client.isReady)
-                {
-                    Log.Warning($"Client connection for {networkUser.userName} is not ready. Connection ID: {client.connectionId}");
-                }
-
-                Log.Info($"Kicking player {networkUser.userName} (Connection ID: {client.connectionId})");
-
-                var reason = new NetworkManagerSystem.SimpleLocalizedKickReason("KICK_REASON_KICK");
-
-                NetworkManagerSystem.singleton.ServerKickClient(client, reason);
-
-                if (ModConfig.BroadcastKick.Value)
-                {
-                    Chat.SendBroadcastChat(new Chat.SimpleChatMessage
-                    {
-                        baseToken = $"<color=#e57373>Kicked player:</color> <color=#ffffff><noparse>{networkUser.userName}</noparse></color>"
-                    });
-                }
-
-                onKick?.Invoke();
-
-                return true;
+                SendRemoveMessage(networkUser, message);
             }
             catch (Exception e)
             {
-                Log.Error($"Exception in KickPlayer: {e.Message}\n{e.StackTrace}");
-
-                return false;
+                Log.LogError($"Failed to remove player {networkUser.userName}: {e}");
             }
+        }
+
+        public static void Kick(NetworkUser networkUser)
+        {
+            RemovePlayer(networkUser, "Kicked", client =>
+            {
+                var reason = new NetworkManagerSystem.SimpleLocalizedKickReason("KICK_REASON_KICK");
+
+                NetworkManagerSystem.singleton.ServerKickClient(client, reason);
+            });
+        }
+
+        public static void Ban(NetworkUser networkUser)
+        {
+            RemovePlayer(networkUser, "Banned", NetworkManagerSystem.singleton.ServerBanClient);
         }
     }
 }
