@@ -3,7 +3,9 @@
 ## 1.0.4
 - Added banning players (no unbanning for now)
 - Fixed issue with profile button appearing for players not on Steam
-- Fixed the UI causing multiple errors in the console
+- Fixed the UI buttons causing multiple errors in the console
+- If kick / ban fails, the mod will try to forcibly end the connection to the desired client
+- Restructured the codebase, added better error logging available in the BepInEx console
 
 ## 1.0.3
 - Added a button to open the player's Steam profile, available to everyone

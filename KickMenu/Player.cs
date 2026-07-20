@@ -14,14 +14,14 @@ namespace KickMenu
             return NetworkServer.active;
         }
 
-        public static bool IsHost(NetworkUser user)
+        public static bool IsHost(NetworkUser networkUser)
         {
-            if (!NetworkServer.active)
+            if (networkUser == null)
             {
                 return false;
             }
 
-            return user.isLocalPlayer;
+            return networkUser.isLocalPlayer;
         }
 
         private static NetworkConnection GetNetworkConnection(NetworkUser networkUser)
@@ -46,44 +46,66 @@ namespace KickMenu
             return networkUser.connectionToClient;
         }
 
-        private static void SendRemoveMessage(NetworkUser networkUser, string message)
+        private static void SendRemoveMessage(string username, string message)
         {
             if (ModConfig.BroadcastKick.Value)
             {
                 Chat.SendBroadcastChat(new Chat.SimpleChatMessage
                 {
-                    baseToken = $"<color=#e57373>{message} player:</color> <color=#ffffff><noparse>{networkUser.userName}</noparse></color>"
+                    baseToken = $"<color=#e57373>{message} player:</color> <color=#ffffff><noparse>{username}</noparse></color>"
                 });
             }
         }
 
         public static void RemovePlayer(NetworkUser networkUser, string message, Action<NetworkConnection> action)
-        { 
-            NetworkConnection client = GetNetworkConnection(networkUser);
-
-            if (client == null)
+        {
+            if (networkUser == null)
             {
-                Log.LogWarning($"No connection found for player: {networkUser?.userName}");
+                Log.LogWarning("No connection found for player: <null NetworkUser>");
 
                 return;
             }
 
+            string userName = networkUser.userName;
+
+            NetworkConnection client = GetNetworkConnection(networkUser);
+
+            if (client == null)
+            {
+                Log.LogWarning($"No connection found for player: {userName}");
+
+                return;
+            }
+
+            int connectionId = client.connectionId;
+
             if (!client.isReady)
             {
-                Log.LogWarning($"Client connection for {networkUser.userName} is not ready. Connection ID: {client.connectionId}");
+                Log.LogWarning($"Client connection for {userName} is not ready (Connection ID: {connectionId}). Still attempting removal.");
             }
 
             try
-            { 
-                Log.LogInfo($"Removing player {networkUser.userName} (Connection ID: {client.connectionId})");
+            {
+                Log.LogInfo($"Removing player {userName} (Connection ID: {connectionId})...");
 
-                action(client);
+                action?.Invoke(client);
 
-                SendRemoveMessage(networkUser, message);
+                try
+                {
+                    client.Disconnect();
+                }
+                catch (Exception disconnectException)
+                {
+                    Log.LogDebug($"client.Disconnect() fallback for {userName} threw (connection was likely already closed): {disconnectException.Message}");
+                }
+
+                Log.LogInfo($"{message} player {userName} (Connection ID: {connectionId})");
+
+                SendRemoveMessage(userName, message);
             }
             catch (Exception e)
             {
-                Log.LogError($"Failed to remove player {networkUser.userName}: {e}");
+                Log.LogError($"Failed to remove player {userName} (Connection ID: {connectionId}): {e}");
             }
         }
 
@@ -99,7 +121,14 @@ namespace KickMenu
 
         public static void Ban(NetworkUser networkUser)
         {
-            RemovePlayer(networkUser, "Banned", NetworkManagerSystem.singleton.ServerBanClient);
+            RemovePlayer(networkUser, "Banned", client =>
+            {
+                NetworkManagerSystem.singleton.ServerBanClient(client);
+
+                var reason = new NetworkManagerSystem.SimpleLocalizedKickReason("KICK_REASON_KICK");
+
+                NetworkManagerSystem.singleton.ServerKickClient(client, reason);
+            });
         }
     }
 }

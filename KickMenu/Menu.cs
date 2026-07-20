@@ -19,6 +19,8 @@ namespace KickMenu
 
         private static bool menuOpen = false;
 
+        private static float time = 0;
+
         private static readonly KeyboardShortcut closeKey = new(KeyCode.Escape);
 
         public static void Init()
@@ -44,6 +46,18 @@ namespace KickMenu
                 menuOpen = false;
 
                 menuPanel.SetActive(menuOpen);
+            }
+
+            time += Time.deltaTime;
+
+            if (time >= 1.0f)
+            {
+                if (menuOpen)
+                {
+                    RefreshPlayerList();
+                }
+
+                time -= 1.0f;
             }
         }
 
@@ -94,15 +108,37 @@ namespace KickMenu
             }
         }
 
+        private static void RefreshPlayerList()
+        {
+            if (contentRoot == null)
+            {
+                return;
+            }
+
+            UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null);
+
+            foreach (Transform child in contentRoot)
+            {
+                Object.Destroy(child.gameObject);
+            }
+
+            foreach (NetworkUser user in NetworkUser.readOnlyInstancesList)
+            {
+                CreatePlayerEntry(user);
+            }
+        }
+
         private static void CreateMenu()
         {
             GameObject canvasObj = new GameObject("KickMenuCanvas");
 
             Canvas canvas = canvasObj.AddComponent<Canvas>();
+
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 1000;
 
             CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
 
@@ -120,6 +156,7 @@ namespace KickMenu
             panelRect.anchoredPosition = Vector2.zero;
 
             Image panelImage = menuPanel.AddComponent<Image>();
+
             panelImage.color = new Color(0f, 0f, 0f, 0.75f);
 
             VerticalLayoutGroup layout = menuPanel.AddComponent<VerticalLayoutGroup>();
@@ -143,26 +180,6 @@ namespace KickMenu
             contentRoot = menuPanel.transform;
 
             menuPanel.SetActive(false);
-        }
-
-        private static void RefreshPlayerList()
-        {
-            if (contentRoot == null)
-            {
-                return;
-            }
-
-            UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null);
-
-            foreach (Transform child in contentRoot)
-            {
-                Object.Destroy(child.gameObject);
-            }
-
-            foreach (NetworkUser user in NetworkUser.readOnlyInstancesList)
-            {
-                CreatePlayerEntry(user);
-            }
         }
 
         private static void CreatePlayerEntry(NetworkUser user)
@@ -210,18 +227,13 @@ namespace KickMenu
             {
                 CreateButton(row.transform, "Kick", () =>
                 {
-                    UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null);
-
                     ToggleMenu();
 
                     Popup.OpenKickPopup(user);
                 });
 
-
                 CreateButton(row.transform, "Ban", () =>
                 {
-                    UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null);
-
                     ToggleMenu();
 
                     Popup.OpenBanPopup(user);
@@ -232,14 +244,12 @@ namespace KickMenu
 
             GameObject profileButton = CreateButton(row.transform, "Profile", () =>
             {
-                UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null);
-
                 ToggleMenu();
 
                 Steam.OpenSteamProfile(userId);
             });
 
-            if (userId == 0)
+            if (userId == 0 && profileButton != null)
             {
                 profileButton.SetActive(false);
             }
@@ -274,6 +284,12 @@ namespace KickMenu
 
             if (hgButton)
             {
+                Navigation nav = hgButton.navigation;
+
+                nav.mode = Navigation.Mode.None;
+
+                hgButton.navigation = nav;
+
                 hgButton.onClick.RemoveAllListeners();
 
                 hgButton.onClick.AddListener(action);
