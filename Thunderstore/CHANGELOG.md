@@ -1,7 +1,7 @@
 # KickMenu Changelog
 
 ## 1.0.4
-- Added banning players (no unbanning for now)
+- Added banning players
 - Fixed issue with profile button appearing for players not on Steam
 - Fixed the UI buttons causing multiple errors in the console
 - If kick / ban fails, the mod will try to forcibly end the connection to the desired client
